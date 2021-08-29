@@ -3,8 +3,8 @@ from time import perf_counter as clock, sleep
 from copy import deepcopy
 from random import random, shuffle
 # import asyncio
-from threading import Thread, Lock
-import multiprocessing
+# from threading import Thread, Lock
+# import multiprocessing
 
 class _Item: # 아이템
     def __init__(self, name='Crimson Flower', main_category='FOOD', sub_category='Health', item_class='Legendary', item_value=220, 
