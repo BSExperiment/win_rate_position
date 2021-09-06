@@ -2,9 +2,16 @@
 from time import perf_counter as clock, sleep
 from copy import deepcopy
 from random import random, shuffle
-# import asyncio
-# from threading import Thread, Lock
-# import multiprocessing
+from datetime import datetime
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+import matplotlib.ticker as ticker
+import seaborn as sns
+
+fontFile = 'C:/Windows/Fonts/malgun.ttf'
+fontName = fm.FontProperties(fname=fontFile, size=50).get_name()
+plt.rc('font', family=fontName)
 
 class _Item: # 아이템
     def __init__(self, name='Crimson Flower', main_category='FOOD', sub_category='Health', item_class='Legendary', item_value=220, 
@@ -246,11 +253,17 @@ class _None:
     name = None
 
 class _Battle_state:
-    def __init__(self, action_time, player, action, find_li=[_None()]):
+    def __init__(self, action_time, player, action, find_li=[_None()],
+                is_fixed_damage = False,
+                fixed_damage = 1):
         self.action_time = action_time
         self.player = player
         self.action = action
         self.find_li = find_li
+        self.is_fixed_damage = is_fixed_damage
+        self.fixed_damage = fixed_damage
+        
+        # print(self.is_fixed_damage)
         
     def search_start(self, area):
         found_object_li = []
@@ -286,39 +299,44 @@ class _Battle_state:
                     found_object_li = [area.li_players[i]]
                 start_value = v
                     
-            battle_state_li.append(_Battle_state(self.action_time+1.5, self.player, 'search_completion', found_object_li))
+            battle_state_li.append(_Battle_state(self.action_time+1.5, self.player, 'search_completion', found_object_li, is_fixed_damage=self.is_fixed_damage, fixed_damage=self.fixed_damage))
             # battle_state_li.append(_Battle_state(self.action_time+1.5, self.player, 'attack', found_object_li))
             return battle_state_li
         #3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
         
-        battle_state_li.append(_Battle_state(self.action_time+1.5, self.player, 'search_completion'))
-        battle_state_li.append(_Battle_state(self.action_time+1.5, self.player, 'search_start'))
+        battle_state_li.append(_Battle_state(self.action_time+1.5, self.player, 'search_completion', is_fixed_damage=self.is_fixed_damage, fixed_damage=self.fixed_damage))
+        battle_state_li.append(_Battle_state(self.action_time+1.5, self.player, 'search_start', is_fixed_damage=self.is_fixed_damage, fixed_damage=self.fixed_damage))
         return battle_state_li
     
     def enemy_player_found(self):
-        return [_Battle_state(self.action_time, self.player, 'attack', self.find_li)]
+        return [_Battle_state(self.action_time, self.player, 'attack', self.find_li, is_fixed_damage=self.is_fixed_damage, fixed_damage=self.fixed_damage)]
     
     def attack(self):
         battle_state_li = []
         if self.find_li[0].is_live: # 살아있으면 공격
-            self.find_li[0].dict_character_stat['health'] = _Attack(self.player, self.find_li[0])
+            if self.is_fixed_damage:
+                self.find_li[0].dict_character_stat['health'] -= self.fixed_damage
+            else:
+                self.find_li[0].dict_character_stat['health'] = _Attack(self.player, self.find_li[0])
+            # print(self.find_li[0].dict_character_stat['health'])
+            
             if self.find_li[0].dict_character_stat['health'] <= 0: # 적 처치
                 self.find_li[0].is_live = False
                     
-                battle_state_li.append(_Battle_state(self.action_time, self.find_li[0], 'dead'))
-                battle_state_li.append(_Battle_state(self.action_time+1.5, self.player, 'search_start'))
+                battle_state_li.append(_Battle_state(self.action_time, self.find_li[0], 'dead', is_fixed_damage=self.is_fixed_damage, fixed_damage=self.fixed_damage))
+                battle_state_li.append(_Battle_state(self.action_time+1.5, self.player, 'search_start', is_fixed_damage=self.is_fixed_damage, fixed_damage=self.fixed_damage))
             else:
-                battle_state_li.append(_Battle_state(self.action_time+1, self.player, 'search_start'))
+                battle_state_li.append(_Battle_state(self.action_time+1, self.player, 'search_start', is_fixed_damage=self.is_fixed_damage, fixed_damage=self.fixed_damage))
                     
         else: # 죽어있음
-            battle_state_li.append(_Battle_state(self.action_time, self.player, 'already_dead'))
+            battle_state_li.append(_Battle_state(self.action_time, self.player, 'already_dead', is_fixed_damage=self.is_fixed_damage, fixed_damage=self.fixed_damage))
             # battle_state_li.append(_Battle_state(self.action_time+0.5, self.player, 'search_start'))
         
         return battle_state_li
     
     def already_dead(self):
         # return [_Battle_state(self.action_time, self.player, 'search_start')]
-        return [_Battle_state(self.action_time+0.5, self.player, 'search_start')]
+        return [_Battle_state(self.action_time+0.5, self.player, 'search_start', is_fixed_damage=self.is_fixed_damage, fixed_damage=self.fixed_damage)]
         
 def _Attack(attacker, enemy):
     # 데미지 = (attacker의 합계 공격력 * 100) / (enemy의 합계 방어력 + 100)
@@ -343,8 +361,11 @@ def _Print(player_cnt, n, munjayeol, t):
             print('%20s ' % (''), end='')
 
 
-def _Area_Battle(area, print_sw=True):
+def _Area_Battle(area, print_sw=True,
+                   is_fixed_damage = False,
+                   fixed_damage = 1):
     name_li = [] # 순위
+    # print(is_fixed_damage)
     
     name_no_dict = {}
     for i, v in enumerate(area.li_players):
@@ -355,7 +376,7 @@ def _Area_Battle(area, print_sw=True):
     # battle_state_li.append([0.3, 2, 'search_start']) # 0.3초에 2번 플레이어의 탐색 시작
     # battle_state_li.append([0.9, 1, 'search_start']) # 0.9초에 1번 플레이어의 탐색 시작
     for i in area.li_players:
-        battle_state_li.append(_Battle_state(random(), i, 'search_start'))
+        battle_state_li.append(_Battle_state(random(), i, 'search_start', is_fixed_damage=is_fixed_damage, fixed_damage=fixed_damage))
     battle_state_li = sorted(battle_state_li, key=lambda x: x.action_time)
     
     battle_state = []
@@ -409,7 +430,7 @@ def _Area_Battle(area, print_sw=True):
             battle_state_li.append(v)
         
         battle_state_li = sorted(battle_state_li, key=lambda x: x.action_time)
-        if print_sw: sleep(0.01)
+        if print_sw: sleep(1)
     
     for i in area.li_players:
         if i.is_live:
@@ -419,7 +440,11 @@ def _Area_Battle(area, print_sw=True):
     name_li.reverse()
     return name_li
     
-def _win_rate_test(area, loop_cnt):
+def _win_rate_test(area, loop_cnt,
+                   is_fixed_damage = False,
+                   fixed_damage = 1):
+    # is_fixed_damage : 피해량을 지정해 줄 것인지 확인
+    # fixed_damage : 피해량을 지정해 줄 경우 fixed_damage의 값을 고정 피해량으로 지정함 (추가 피해와는 다름)
     copy_area = None
     name_li = []
     name_dict = {}
@@ -428,7 +453,7 @@ def _win_rate_test(area, loop_cnt):
     
     for i in range(loop_cnt):
         copy_area = deepcopy(area)
-        name_li = _Area_Battle(copy_area, False)
+        name_li = _Area_Battle(copy_area, False, is_fixed_damage=is_fixed_damage, fixed_damage=fixed_damage)
         
         name_dict[name_li[0]] += 1
     
@@ -463,20 +488,66 @@ if __name__=="__main__":
     player1 = _Player(18, 'player1', _Character(), [[_Item(), 10], None, None, None, None, None], dict_equipment_state, [], 'SS', 'Dodging')
     player2 = _Player(18, 'player2', _Character(), [[_Item(), 10], None, None, None, None, None], dict_equipment_state, [], 'SS', 'Dodging')
     player3 = _Player(18, 'player3', _Character(), [[_Item(), 10], None, None, None, None, None], dict_equipment_state, [], 'SS', 'Dodging')
-    player4 = _Player(18, 'player4', _Character(), [[_Item(), 10], None, None, None, None, None], dict_equipment_state, [], 'SS')#, 'Dodging')
-    li_players = [player1, player2, player3]#, player4]
+    player4 = _Player(18, 'player4', _Character(), [[_Item(), 10], None, None, None, None, None], dict_equipment_state, [], 'SS', 'Dodging')
+    player5 = _Player(18, 'player5', _Character(), [[_Item(), 10], None, None, None, None, None], dict_equipment_state, [], 'SS', 'Dodging')
+    li_players = [player1, player2, player3]#, player4, player5]
     
     area = _Area('지하 통로', li_players, [])
-    loop_cnt = 100000000
+    loop_cnt = 10000
+        
+    file_name = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S') + '.txt'
+    #print(file_name)
     
     for i in li_players:
         print(i.name, i.stance)
     print('loop_cnt :', loop_cnt)
     
-    t1 = clock()
-    name_dict = _win_rate_test(area, loop_cnt)
+    # for i in range(200, 0, -1):#(1, 101):
+        # fixed_damage = 222.01 / i
+        # print('------------------------------------------------------')
+        # print('고정 피해량 :', fixed_damage)
+        # print(222/fixed_damage, i)
+        #
+        # if not 0 < i - 222/fixed_damage < 1: break
+    # exit()
+    
+    loop_strat_clock = clock()
+    # for i in range(5, 231, 5):
+    for i in range(200, 0, -1):#(1, 101):
+        fixed_damage = 222.01 / i
+        print('------------------------------------------------------')
+        print('고정 피해량 :', fixed_damage)
+        print(222/fixed_damage, i)
+        t1 = clock()
+        name_dict = _win_rate_test(area, loop_cnt, is_fixed_damage=True, fixed_damage=fixed_damage)
+        print(name_dict, clock()-t1)
+        
+        f = open(file_name, 'a', encoding='utf-8')
+        f.write('%d' % i)
+        for k, v in name_dict.items():
+            print(k, v)
+            f.write(',%d' % v)
+        f.write('\n')
+        f.close()
+    
+    print(clock()-loop_strat_clock)
+    win_count_df = pd.read_csv(file_name, encoding='utf-8',
+                               names=['fixed_damage', 'player1(%s)' % player1.stance, 'player2(%s)' % player2.stance, 'player3(%s)' % player3.stance])
+    print(win_count_df)
+    print((win_count_df['fixed_damage'].astype(str)).tolist())
+    # print(win_count_df[['player1', 'player2', 'player3']])
+    
+    sns.lineplot(data=win_count_df[['player1(%s)' % player1.stance, 'player2(%s)' % player2.stance, 'player3(%s)' % player3.stance]])
+    #ax=plt.axes()
+    #ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    # plt.xticks(win_count_df['player3'], ['5d', '10d', '15d', '20d', '25d', '30d', '35d', '40d', '45d', '50d', '55d', '60d', '65d', '70d', '75d', '80d', '85d', '90d', '95d', '100d', '105d', '110d', '115d', '120d', '125d', '130d', '135d', '140d', '145d', '150d', '155d', '160d', '165d', '170d', '175d', '180d', '185d', '190d', '195d', '200d', '205d', '210d', '215d', '220d', '225d', '230d'])
+    # plt.xticks(win_count_df['player1'], (win_count_df['fixed_damage'].astype(str) + 'd').tolist(), rotation=90)
+    plt.xlabel('x+1대 맞으면 사망')
+    plt.ylabel('승리 횟수')
+    plt.show()
+    
+    # name_dict = _win_rate_test(area, loop_cnt)
     # player1.player_info()
     # player2.player_info()
     # player3.player_info()
     # player4.player_info()
-    print(name_dict, clock()-t1)
