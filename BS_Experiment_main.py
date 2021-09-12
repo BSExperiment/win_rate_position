@@ -3,6 +3,7 @@ from time import perf_counter as clock, sleep
 from copy import deepcopy
 from random import random, shuffle
 from datetime import datetime
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
@@ -490,10 +491,10 @@ if __name__=="__main__":
     player3 = _Player(18, 'player3', _Character(), [[_Item(), 10], None, None, None, None, None], dict_equipment_state, [], 'SS', 'Dodging')
     player4 = _Player(18, 'player4', _Character(), [[_Item(), 10], None, None, None, None, None], dict_equipment_state, [], 'SS', 'Dodging')
     player5 = _Player(18, 'player5', _Character(), [[_Item(), 10], None, None, None, None, None], dict_equipment_state, [], 'SS', 'Dodging')
-    li_players = [player1, player2, player3]#, player4, player5]
+    li_players = [player1, player2, player3, player4]#, player5]
     
     area = _Area('지하 통로', li_players, [])
-    loop_cnt = 10000
+    loop_cnt = 1000
         
     file_name = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S') + '.txt'
     #print(file_name)
@@ -512,8 +513,9 @@ if __name__=="__main__":
     # exit()
     
     loop_strat_clock = clock()
+    m = 200#40
     # for i in range(5, 231, 5):
-    for i in range(200, 0, -1):#(1, 101):
+    for i in range(m, 0, -1):#(1, 101):
         fixed_damage = 222.01 / i
         print('------------------------------------------------------')
         print('고정 피해량 :', fixed_damage)
@@ -530,24 +532,19 @@ if __name__=="__main__":
         f.write('\n')
         f.close()
     
+    name_li = ['fixed_damage']
+    for i in li_players:
+        name_li.append('%s(%s)' % (i.name, i.stance) )
+    
     print(clock()-loop_strat_clock)
-    win_count_df = pd.read_csv(file_name, encoding='utf-8',
-                               names=['fixed_damage', 'player1(%s)' % player1.stance, 'player2(%s)' % player2.stance, 'player3(%s)' % player3.stance])
+    win_count_df = pd.read_csv(file_name, encoding='utf-8', names=name_li)
     print(win_count_df)
     print((win_count_df['fixed_damage'].astype(str)).tolist())
-    # print(win_count_df[['player1', 'player2', 'player3']])
     
-    sns.lineplot(data=win_count_df[['player1(%s)' % player1.stance, 'player2(%s)' % player2.stance, 'player3(%s)' % player3.stance]])
-    #ax=plt.axes()
-    #ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
-    # plt.xticks(win_count_df['player3'], ['5d', '10d', '15d', '20d', '25d', '30d', '35d', '40d', '45d', '50d', '55d', '60d', '65d', '70d', '75d', '80d', '85d', '90d', '95d', '100d', '105d', '110d', '115d', '120d', '125d', '130d', '135d', '140d', '145d', '150d', '155d', '160d', '165d', '170d', '175d', '180d', '185d', '190d', '195d', '200d', '205d', '210d', '215d', '220d', '225d', '230d'])
-    # plt.xticks(win_count_df['player1'], (win_count_df['fixed_damage'].astype(str) + 'd').tolist(), rotation=90)
-    plt.xlabel('x+1대 맞으면 사망')
-    plt.ylabel('승리 횟수')
+    sns.lineplot(data=win_count_df[name_li[1:]])
+    plt.xticks(np.arange(0, m, m//8))
+    plt.yticks(np.arange(0, loop_cnt, loop_cnt/10))
+    
+    plt.xlabel(str(m) + ' - max_hp / damage')
+    plt.ylabel('victory')
     plt.show()
-    
-    # name_dict = _win_rate_test(area, loop_cnt)
-    # player1.player_info()
-    # player2.player_info()
-    # player3.player_info()
-    # player4.player_info()
